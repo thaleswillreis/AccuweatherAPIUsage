@@ -2,6 +2,7 @@ import requests
 import json
 import os
 from dotenv import load_dotenv
+from datetime import date
 
 
 load_dotenv()
@@ -9,6 +10,8 @@ accuweather_api_key = (os.environ["accuweatherAPIKey"])
 """Environment variable containing the accuWeather API key.
     Can be replaced by the API Key String directly.
     """
+days_week = ['Domingo', 'Segunda-feira', 'Terça-feira',
+             'Quarte-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado']
 
 
 def get_coordinates():
@@ -95,6 +98,44 @@ def get_weather_forecast(localCode, localName):
             return None
 
 
+def get_5_day_weather_forecast(localCode):
+    """Get daily weather forecast for the location for the next 5 days from the Accuweather API.
+
+    Args:
+        localCode (__str__): Location code acquired from Accuweather Geolocation API.
+
+    Returns:
+        __list__: Returns a list containing the daily weather forecast for the location for the next 5 days.
+    """
+
+    daily_forecast_api_url = "http://dataservice.accuweather.com/forecasts/v1/daily/5day/" + \
+        localCode + "?apikey=" + accuweather_api_key + "&language=pt-br&metric=true"
+
+    reqst_daily_forecast_conditions = requests.get(daily_forecast_api_url)
+    if (reqst_daily_forecast_conditions.status_code != 200):
+        print('ERRO: Não foi possível obter as condições de tempo do local.')
+        return None
+    else:
+        try:
+            daily_conditions_response = json.loads(
+                reqst_daily_forecast_conditions.text)
+            info_5_day_weather = []
+            for daily in daily_conditions_response['DailyForecasts']:
+                day_weather = {}
+                day_weather['max'] = daily['Temperature']['Maximum']['Value']
+                day_weather['min'] = daily['Temperature']['Minimum']['Value']
+                day_weather['weather'] = daily['Day']['IconPhrase']
+                day_week = int(date.fromtimestamp(
+                    daily['EpochDate']).strftime("%w"))
+                day_weather['day'] = days_week[day_week]
+                info_5_day_weather.append(day_weather)
+            return info_5_day_weather
+        except:
+            return None
+
+# -------Beginning of function calls and program execution-------
+
+
 coordinates = get_coordinates()
 
 try:
@@ -105,5 +146,16 @@ try:
     print('O clima neste momento em ' + current_weather['localName'])
     print(current_weather['weatherText'])
     print('Temperatura: ' + str(current_weather['temperature']) + "\xb0" + "C")
+    print('-----------------------------------------------------------------')
+
+    print('\nClima para os próximos cinco dias:\n')
+
+    weather_forecast_five_day = get_5_day_weather_forecast(local['localCode'])
+    for daily in weather_forecast_five_day:
+        print(daily['day'])
+        print('Mínima: ' + str(daily['min']) + "\xb0" + "C")
+        print('Máxima: ' + str(daily['max']) + "\xb0" + "C")
+        print('Clima: ' + daily['weather'])
+        print('------------------------------------------------')
 except:
     print('ATENÇÃO: Ocorreu um erro ao processar sua solicitação. Contacte o suporte.')
